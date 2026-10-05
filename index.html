@@ -520,7 +520,8 @@ let F = null;       // 目前編輯中的帳目表單
 // 行程裡任何成員都能寫資料，不能假設欄位一定是數字或字串（否則壞資料可能讓畫面壞掉，或被塞進惡意內容）。
 const str = (v, max = 200) => (typeof v === 'string' ? v : v == null ? '' : String(v)).slice(0, max);
 const fin = v => { const n = typeof v === 'number' ? v : parseFloat(v); return Number.isFinite(n) ? n : 0; };
-const sid = v => { const t = str(v, 128); return ['__proto__', 'constructor', 'prototype'].includes(t) ? '' : t; };
+// 成員與行程的代號只會是英數字、底線、連字號；其他一律丟掉，這樣它就不可能被拼進資料庫路徑裡搞鬼
+const sid = v => typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v) && !['__proto__', 'constructor', 'prototype'].includes(v) ? v : '';
 const ccy = (v, fb) => typeof v === 'string' && /^[A-Z]{3}$/.test(v) ? v : fb;
 const obj = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
 function cleanGroup(g) {
@@ -529,8 +530,8 @@ function cleanGroup(g) {
   for (const [id, m] of Object.entries(obj(g.members))) if (sid(id) && m && typeof m === 'object')
     members[id] = { name: str(m.name, 40).trim() || '旅伴', photo: /^https:\/\//.test(m.photo) ? str(m.photo, 500) : '', guest: !!m.guest, left: !!m.left, removed: !!m.removed, joinedAt: fin(m.joinedAt) };
   const base = ccy(g.base, 'TWD');
-  return { id: str(g.id), name: str(g.name, 60).trim() || '未命名行程', base, tripCur: ccy(g.tripCur, base), ownerUid: str(g.ownerUid), inviteCode: str(g.inviteCode, 80), createdAt: fin(g.createdAt),
-    memberUids: (Array.isArray(g.memberUids) ? g.memberUids : []).filter(x => typeof x === 'string'), members };
+  return { id: sid(g.id), name: str(g.name, 60).trim() || '未命名行程', base, tripCur: ccy(g.tripCur, base), ownerUid: str(g.ownerUid), inviteCode: str(g.inviteCode, 80), createdAt: fin(g.createdAt),
+    memberUids: (Array.isArray(g.memberUids) ? g.memberUids : []).map(sid).filter(Boolean), members };
 }
 function cleanExpense(e) {
   const o = { id: str(e.id), kind: e.kind === 'transfer' ? 'transfer' : 'expense', date: typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : '',
@@ -1084,10 +1085,13 @@ function exportCsv() {
 /* =====================================================================
    動作
    ===================================================================== */
-function pendingJoin() { try { return JSON.parse(sessionStorage.getItem('tl_join')); } catch { return null; } }
+function pendingJoin() { try { const p = JSON.parse(sessionStorage.getItem('tl_join')); return p && sid(p.g) && sid(p.k) && p.g.length <= 64 && p.k.length <= 64 ? { g: p.g, k: p.k } : null; } catch { return null; } }
 function captureInvite() {
   const q = new URLSearchParams(location.search), g = q.get('g'), k = q.get('k');
-  if (g && k) { try { sessionStorage.setItem('tl_join', JSON.stringify({ g, k })); } catch { } history.replaceState(null, '', location.pathname); }
+  if (g === null && k === null) return;
+  // 邀請連結的參數是外來的：只接受英數字組成的代號，含斜線、句點之類的一律不理，免得被拿來指向別的資料路徑
+  if (sid(g) && sid(k) && g.length <= 64 && k.length <= 64) { try { sessionStorage.setItem('tl_join', JSON.stringify({ g, k })); } catch { } }
+  history.replaceState(null, '', location.pathname);
 }
 async function tryJoin() {
   const p = pendingJoin(); if (!p || !S.user || store.mode !== 'cloud') return;
@@ -1096,6 +1100,7 @@ async function tryJoin() {
   catch (e) { console.warn(e); toast('邀請連結已失效，請旅伴再傳一次'); }
 }
 function openGroup(gid) {
+  if (!sid(gid)) return;
   leaveGroupView(); S.gid = gid; S.tab = 'list'; S.group = null; S.expenses = []; render();
   unsubGroup = store.watchGroup(gid, (g, err) => { if (S.gid !== gid) return; if (!g || (store.mode === 'cloud' && !(g.memberUids || []).includes(S.user.uid))) { toast(err && err.code !== 'permission-denied' ? `讀取行程沒有成功（${err.code || '連線問題'}）` : '你已經不在這個行程裡，或行程已被刪除'); goHome(); return; }
     const withMail = Object.entries(g.members || {}).filter(([, m]) => m && m.email !== undefined).map(([id]) => id);
