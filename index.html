@@ -416,7 +416,7 @@ async function cloudStore() {
     },
     signOut: () => U.signOut(auth),
     watchGroups: cb => Fs.onSnapshot(Fs.query(Fs.collection(db, 'groups'), Fs.where('memberUids', 'array-contains', me())), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail('讀取行程列表')),
-    watchGroup: (gid, cb) => Fs.onSnapshot(gref(gid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), e => { fail('讀取行程')(e); cb(null, e); }),
+    watchGroup: (gid, cb) => Fs.onSnapshot(gref(gid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), e => { console.warn('讀取行程', e); cb(null, e); }),
     watchExpenses: (gid, cb) => Fs.onSnapshot(Fs.collection(db, 'groups', gid, 'expenses'), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail('讀取帳目')),
     async createGroup(data) { const r = Fs.doc(Fs.collection(db, 'groups')); await Fs.setDoc(r, data); return r.id; },
     updateGroup: (gid, patch) => Fs.updateDoc(gref(gid), patch).catch(fail('更新行程')),
@@ -424,6 +424,9 @@ async function cloudStore() {
     removeMember: (gid, id) => Fs.updateDoc(gref(gid), { ['members.' + id]: Fs.deleteField() }).catch(fail('移除成員')),
     joinGroup: (gid, code, m) => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayUnion(me()), ['members.' + me()]: m, joinedWith: code }),
     leaveGroup: gid => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayRemove(me()), ['members.' + me() + '.left']: true }).catch(fail('退出行程')),
+    // 建立者移出成員：收回存取權並換掉邀請碼。wipe = 沒有任何帳目，名字整個清掉；否則保留名字、標成已移出。
+    kickMember: (gid, uid, wipe, code) => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayRemove(uid), inviteCode: code,
+      ...(wipe ? { ['members.' + uid]: Fs.deleteField() } : { ['members.' + uid + '.left']: true, ['members.' + uid + '.removed']: true }) }),
     async deleteGroup(gid) {
       for (const sub of ['expenses', 'receipts']) { const s = await Fs.getDocs(Fs.collection(db, 'groups', gid, sub)); await Promise.all(s.docs.map(d => Fs.deleteDoc(d.ref))); }
       await Fs.deleteDoc(gref(gid));
@@ -475,6 +478,7 @@ function demoStore() {
     removeMember(gid, id) { delete L.groups[gid].doc.members[id]; save(); },
     async joinGroup() { throw new Error('demo'); },
     leaveGroup() { },
+    async kickMember(gid, uid, wipe, code) { const d = L.groups[gid].doc; d.memberUids = d.memberUids.filter(x => x !== uid); d.inviteCode = code; if (wipe) delete d.members[uid]; else Object.assign(d.members[uid], { left: true, removed: true }); save(); },
     async deleteGroup(gid) { delete L.groups[gid]; save(); },
     saveExpense(gid, id, data, receipt) { id = id || rid(); const g = L.groups[gid]; g.expenses[id] = data; if (receipt) g.receipts[id] = receipt; else if (receipt === null) delete g.receipts[id]; save(); return id; },
     deleteExpense(gid, id) { const g = L.groups[gid]; delete g.expenses[id]; delete g.receipts[id]; save(); },
@@ -695,10 +699,12 @@ function tabMembers(g) {
   for (const e of S.expenses) { [e.payer, e.from, e.to, ...(e.split?.ids || []), ...Object.keys(e.split?.shares || {})].forEach(x => x && used.add(x)); }
   return `<section class="panel"><h2>旅伴</h2>
       ${memberList().map(m => `<div class="mem">${avatar(m.id, m)}
-        <div class="mem-main">${esc(m.name)}${m.id === S.user.uid ? '（我）' : ''}<small>${m.left ? '已退出' : m.guest ? '只有名字，還沒登入' : m.id === g.ownerUid ? '建立者' : '已加入'}</small></div>
-        ${m.guest && !used.has(m.id) ? `<button class="btn ghost small" data-act="remove-member" data-id="${esc(m.id)}">移除</button>` : ''}</div>`).join('')}
+        <div class="mem-main">${esc(m.name)}${m.id === S.user.uid ? '（我）' : ''}<small>${m.removed ? '已移出' : m.left ? '已退出' : m.guest ? '只有名字，還沒登入' : m.id === g.ownerUid ? '建立者' : '已加入'}</small></div>
+        ${m.guest && !used.has(m.id) ? `<button class="btn ghost small" data-act="remove-member" data-id="${esc(m.id)}">移除</button>`
+          : !m.guest && m.left && !used.has(m.id) && isOwner ? `<button class="btn ghost small" data-act="remove-member" data-id="${esc(m.id)}">清除</button>`
+          : !m.guest && !m.left && isOwner && m.id !== g.ownerUid ? `<button class="btn danger small" data-act="kick-member" data-id="${esc(m.id)}" data-used="${used.has(m.id) ? 1 : ''}">移出</button>` : ''}</div>`).join('')}
       <div class="btn-row"><button class="btn" data-act="invite">邀請旅伴</button><button class="btn ghost" data-act="add-guest">加一個名字</button></div>
-      <p class="hint">旅伴不想登入也沒關係，先加名字就能一起分帳。</p></section>
+      <p class="hint">旅伴不想登入也沒關係，先加名字就能一起分帳。${isOwner ? '移出旅伴會收回他的存取權，並自動換一條新的邀請連結。' : ''}</p></section>
     <section class="panel"><h2>行程設定</h2>
       <div class="field"><label for="g-name">行程名稱</label><input class="inp" id="g-name" value="${esc(g.name)}" maxlength="40"></div>
       <div class="two even"><div class="field"><label for="g-trip">當地幣別</label><select class="inp" id="g-trip">${curOptions(g.tripCur)}</select></div>
@@ -1038,7 +1044,7 @@ async function tryJoin() {
 }
 function openGroup(gid) {
   leaveGroupView(); S.gid = gid; S.tab = 'list'; S.group = null; S.expenses = []; render();
-  unsubGroup = store.watchGroup(gid, (g, err) => { if (S.gid !== gid) return; if (!g || (store.mode === 'cloud' && !(g.memberUids || []).includes(S.user.uid))) { if (!err) toast('這個行程已經不存在，或你已退出'); goHome(); return; } S.group = g; render(); });
+  unsubGroup = store.watchGroup(gid, (g, err) => { if (S.gid !== gid) return; if (!g || (store.mode === 'cloud' && !(g.memberUids || []).includes(S.user.uid))) { toast(err && err.code !== 'permission-denied' ? `讀取行程沒有成功（${err.code || '連線問題'}）` : '你已經不在這個行程裡，或行程已被刪除'); goHome(); return; } S.group = g; render(); });
   unsubExp = store.watchExpenses(gid, list => { if (S.gid !== gid) return; S.expenses = list; render(); });
   window.scrollTo(0, 0);
 }
@@ -1144,6 +1150,15 @@ document.addEventListener('click', async ev => {
     case 'add-guest': openSheet({ type: 'guest' }); setTimeout(() => $('#gu-name')?.focus(), 50); break;
     case 'save-guest': { const n = $('#gu-name').value.trim(); if (!n) { sheet.err = '請輸入名字。'; renderSheet(); break; } store.setMember(S.gid, 'g_' + rid(8), { name: n, guest: true, joinedAt: Date.now() }); closeSheet(); toast(`已加入 ${n}`); break; }
     case 'remove-member': if (confirm('把這個名字從名單移除？')) store.removeMember(S.gid, el.dataset.id); break;
+    case 'kick-member': {
+      const id = el.dataset.id, used = !!el.dataset.used, nm = mName(id);
+      if (S.group.ownerUid !== S.user.uid || id === S.user.uid) break;
+      if (!confirm(used ? `把「${nm}」移出行程？\n\n他之後就打不開這個行程了。他的帳目和該付、該收的金額都會保留，名字會標成「已移出」。\n舊的邀請連結也會一起失效。`
+                        : `把「${nm}」移出行程？\n\n他沒有任何帳目，名字會從名單上整個清除。\n舊的邀請連結也會一起失效。`)) break;
+      try { await store.kickMember(S.gid, id, !used, rid(20)); toast(`已移出 ${nm}，邀請連結已換新`); }
+      catch (e) { console.error(e); toast(e?.code === 'permission-denied' ? '移出被拒絕（沒有權限），請確認新的安全規則已經發布' : `移出沒有成功（${e?.code || '連線問題'}）`); }
+      break;
+    }
     case 'settings-save': { const name = $('#g-name').value.trim(); if (!name) { toast('行程名稱不能空白'); break; } const patch = { name, tripCur: $('#g-trip').value }; if (!S.expenses.length) patch.base = $('#g-base').value; store.updateGroup(S.gid, patch); toast('已儲存設定'); break; }
     case 'leave-group': if (confirm('退出後就看不到這個行程了，帳目會保留給其他人。確定退出？')) { const gid = S.gid; goHome(); store.leaveGroup(gid); } break;
     case 'delete-group': if (confirm(`刪除「${S.group.name}」和裡面所有帳目？這個動作無法復原。`)) { const gid = S.gid; goHome(); try { await store.deleteGroup(gid); toast('已刪除行程'); } catch (e) { console.error(e); toast('刪除沒有完成，請再試一次'); } } break;
