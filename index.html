@@ -153,9 +153,12 @@ h1,h2,h3,p{margin:0}
 .pay-main{flex:1;min-width:0;font-weight:700}
 .pay-main small{display:block;font-weight:500;color:var(--ink2);font-size:13px}
 .pay-main .amt{font-weight:900;font-size:18px;color:var(--ink)}
+.ok{display:inline-block;font-size:12px;font-weight:900;background:#D9F3EA;color:#0A5C41;border:1.5px solid var(--edge);border-radius:999px;padding:0 8px;margin-left:8px;vertical-align:2px;line-height:1.5}
+.pay.done .av{opacity:.6}
+.allclear{font-weight:900;color:var(--leaf);margin-top:12px}
 .track{display:block;background:var(--tile);border:2px solid var(--edge);border-radius:999px;overflow:hidden}
 .fill{display:block}
-.net{display:grid;grid-template-columns:5.5em 1fr 6.5em;align-items:center;gap:8px;padding:7px 0;font-size:14px}
+.net{display:grid;grid-template-columns:4.6em minmax(0,1fr) 8.4em;align-items:center;gap:8px;padding:8px 0;font-size:14px}
 .net .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
 .net .track{height:18px;position:relative}
 .net .track::after{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--edge)}
@@ -163,6 +166,9 @@ h1,h2,h3,p{margin:0}
 .net .fill.pos{left:50%;background:#7FDDB8}
 .net .fill.neg{right:50%;background:#FF9DB8}
 .net .v{text-align:right;font-weight:900}
+.net .v small{display:block;font-size:12px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.net .v small.ok{display:table;margin:3px 0 0 auto}
+.net.settled .fill{opacity:.45}
 .pos{color:var(--leaf)}.neg{color:var(--stamp)}
 .figs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.6fr);gap:10px;margin-bottom:18px}
 .fig{background:var(--card);border:2px solid var(--edge);box-shadow:0 4px 0 var(--edge);border-radius:18px;padding:10px 12px;min-width:0}
@@ -257,25 +263,31 @@ input[type=date].inp{-webkit-appearance:none;appearance:none;min-width:0}
 .item small{display:block;color:var(--ink2);font-size:12px;margin:3px 4px 0;overflow-wrap:anywhere}
 .item .icon-btn{width:36px;height:42px;color:var(--ink2)}
 #print{display:none}
+#pdfstage{position:absolute;left:-10000px;top:0;width:714px}
+.report{font-size:10.5pt;line-height:1.45;color:#111;background:#fff;font-weight:400}
+.report h1{font-size:20pt;font-weight:900;margin:0 0 2pt}
+.report h2{font-size:12.5pt;font-weight:900;margin:16pt 0 6pt;padding-bottom:3pt;border-bottom:1.5pt solid #111;break-after:avoid}
+.report p{margin:0}
+.report .meta{color:#444}
+.report table{width:100%;border-collapse:collapse;font-size:9.5pt}
+.report th,.report td{border-bottom:.5pt solid #bbb;padding:4pt 5pt;text-align:left;vertical-align:top}
+.report th{font-weight:700;border-bottom:1pt solid #111}
+.report .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.report tr{break-inside:avoid}
+.report .its{color:#444;font-size:8.5pt;margin-top:2pt}
+.report .kpi{display:flex;gap:18pt;flex-wrap:wrap;margin-top:8pt}
+.report .kpi div{min-width:90pt}
+.report .kpi span{display:block;color:#444;font-size:9pt}
+.report .kpi b{font-size:14pt;font-weight:800}
+.report tfoot td{font-weight:800;border-bottom:0;border-top:1pt solid #111}
+.report .rb{width:120px;height:9px;background:#e4e4e4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.report .rb i{display:block;height:9px;background:#FF86AB;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+a.btn{text-decoration:none}
 @media print{
   :root{padding:0}
   html,body{background:#fff!important;color:#111!important}
-  #app,#sheet,#toast,.viewer{display:none!important}
-  #print{display:block;font-size:10.5pt;line-height:1.45;color:#111}
-  #print h1{font-size:20pt;font-weight:900;margin:0 0 2pt}
-  #print h2{font-size:12.5pt;font-weight:900;margin:16pt 0 6pt;padding-bottom:3pt;border-bottom:1.5pt solid #111;break-after:avoid}
-  #print .meta{color:#444;margin:0}
-  #print table{width:100%;border-collapse:collapse;font-size:9.5pt}
-  #print th,#print td{border-bottom:.5pt solid #bbb;padding:4pt 5pt;text-align:left;vertical-align:top}
-  #print th{font-weight:700;border-bottom:1pt solid #111}
-  #print .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-  #print tr{break-inside:avoid}
-  #print .its{color:#444;font-size:8.5pt;margin-top:2pt}
-  #print .kpi{display:flex;gap:18pt;flex-wrap:wrap;margin-top:8pt}
-  #print .kpi div{min-width:90pt}
-  #print .kpi span{display:block;color:#444;font-size:9pt}
-  #print .kpi b{font-size:14pt;font-weight:800}
-  #print tfoot td{font-weight:800;border-bottom:0;border-top:1pt solid #111}
+  #app,#sheet,#toast,.viewer,#pdfstage{display:none!important}
+  #print{display:block}
   @page{margin:14mm}
 }
 </style>
@@ -284,7 +296,7 @@ input[type=date].inp{-webkit-appearance:none;appearance:none;min-width:0}
 <div id="app"><div class="boot">載入中…</div></div>
 <div id="sheet"></div>
 <div id="toast" role="status" aria-live="polite"></div>
-<div id="print"></div>
+<div id="print" class="report"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="pick" accept="image/*" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
@@ -506,19 +518,19 @@ function sharesOf(e) {
   return out;
 }
 function compute() {
-  const net = {}, paid = {}, owed = {}, byCat = {}, byDay = {}, byCur = {};
+  const net = {}, gross = {}, paid = {}, owed = {}, byCat = {}, byDay = {}, byCur = {};
   const add = (o, k, v) => { o[k] = (o[k] || 0) + v; };
-  memberList().forEach(m => { net[m.id] = 0; paid[m.id] = 0; owed[m.id] = 0; });
+  memberList().forEach(m => { net[m.id] = 0; gross[m.id] = 0; paid[m.id] = 0; owed[m.id] = 0; });
   let total = 0, count = 0;
   for (const e of S.expenses) {
     const b = e.baseAmount || 0;
     if (e.kind === 'transfer') { add(net, e.from, b); add(net, e.to, -b); continue; }
     total += b; count++;
-    add(paid, e.payer, b); add(net, e.payer, b);
-    for (const [id, v] of Object.entries(sharesOf(e))) { add(owed, id, v); add(net, id, -v); }
+    add(paid, e.payer, b); add(net, e.payer, b); add(gross, e.payer, b);
+    for (const [id, v] of Object.entries(sharesOf(e))) { add(owed, id, v); add(net, id, -v); add(gross, id, -v); }
     add(byCat, e.category || 'other', b); add(byDay, e.date, b); add(byCur, e.currency, e.amount || 0);
   }
-  return { net, paid, owed, total, count, byCat, byDay, byCur };
+  return { net, gross, paid, owed, total, count, byCat, byDay, byCur };
 }
 function settle(net, d) {
   const eps = d === 0 ? 0.5 : 0.005, cred = [], debt = [], out = [];
@@ -622,21 +634,36 @@ function tabList(g) {
   }).join('')}</div>`).join('');
 }
 
+function settleRows(c, d) {
+  const order = Object.fromEntries(memberList().map((m, i) => [m.id, i])), o = id => order[id] ?? 999;
+  const done = S.expenses.filter(e => e.kind === 'transfer').map(e => ({ id: e.id, from: e.from, to: e.to, amount: e.baseAmount || 0, date: e.date, paid: true, at: e.createdAt || 0 }));
+  const open = settle(c.net, d).map(p => ({ ...p, paid: false, at: Infinity }));
+  return [...done, ...open].sort((x, y) => o(x.from) - o(y.from) || o(x.to) - o(y.to) || x.at - y.at);
+}
+// 每個人的狀態：淨額保留記帳算出來的原始數字，還款之後只改狀態
+function netStatus(c, id, base) {
+  const d = dec(base), eps = d ? 0.005 : 0.5, v = c.gross[id] || 0, rem = c.net[id] || 0;
+  if (Math.abs(rem) < eps) return { v, rem, settled: true, text: '結清' };
+  const partial = Math.abs(rem - v) >= eps;
+  return { v, rem, settled: false, text: partial ? `${rem > 0 ? '還要收' : '還要付'} ${fmt(Math.abs(rem), base)}` : rem > 0 ? '應收' : '應付' };
+}
 function tabSettle(g, c) {
-  const d = dec(g.base), pays = settle(c.net, d), eps = d ? 0.005 : 0.5;
-  const max = Math.max(1, ...Object.values(c.net).map(Math.abs));
-  const ms = memberList().filter(m => !m.left || Math.abs(c.net[m.id] || 0) > eps);
+  const d = dec(g.base), eps = d ? 0.005 : 0.5, rows = settleRows(c, d), left = rows.filter(r => !r.paid).length;
+  const max = Math.max(1, ...Object.values(c.gross).map(Math.abs));
+  const ms = memberList().filter(m => !m.left || Math.abs(c.gross[m.id] || 0) > eps || Math.abs(c.net[m.id] || 0) > eps);
   return `<section class="panel"><h2>誰該付給誰</h2>
-      ${pays.length ? pays.map(p => `<div class="pay">${avatar(p.from, g.members?.[p.from])}
-        <div class="pay-main">${esc(mName(p.from))} 付給 ${esc(mName(p.to))}<small class="amt num">${fmt(p.amount, g.base)}</small></div>
-        <button class="btn small" data-act="pay" data-from="${esc(p.from)}" data-to="${esc(p.to)}" data-amt="${p.amount}">記為已付</button></div>`).join('')
-      : `<p style="color:var(--ink2)">${c.count ? '大家都結清了。' : '記了帳之後，這裡會算出最少次數的轉帳方式。'}</p>`}
-      <p class="hint">以 ${esc(g.base)} 結算，每筆帳用記帳當下的匯率換算。</p></section>
+      ${rows.length ? rows.map(p => `<div class="pay ${p.paid ? 'done' : ''}">${avatar(p.from, g.members?.[p.from])}
+        <div class="pay-main">${esc(mName(p.from))} 付給 ${esc(mName(p.to))}<small class="amt num">${fmt(p.amount, g.base)}${p.paid ? '<span class="ok">已付</span>' : ''}</small></div>
+        ${p.paid ? `<button class="btn ghost small" data-act="unpay" data-id="${esc(p.id)}">取消已付</button>`
+                 : `<button class="btn small" data-act="pay" data-from="${esc(p.from)}" data-to="${esc(p.to)}" data-amt="${p.amount}">記為已付</button>`}</div>`).join('')
+      : `<p style="color:var(--ink2)">${c.count ? '大家花的剛好一樣多，不用互相付錢。' : '記了帳之後，這裡會算出最少次數的轉帳方式。'}</p>`}
+      ${rows.length && !left ? '<p class="allclear">全部付清了，大家都結清。</p>' : ''}
+      <p class="hint">以 ${esc(g.base)} 結算，每筆帳用記帳當下的匯率換算。按錯了可以直接取消已付。</p></section>
     <section class="panel"><h2>每個人的淨額</h2>
-      ${ms.map(m => { const v = c.net[m.id] || 0, w = Math.abs(v) / max * 50; return `<div class="net"><span class="nm">${esc(m.name)}</span>
-        <span class="track">${Math.abs(v) < eps ? '' : `<span class="fill ${v > 0 ? 'pos' : 'neg'}" style="width:${w.toFixed(1)}%"></span>`}</span>
-        <span class="v num ${Math.abs(v) < eps ? '' : v > 0 ? 'pos' : 'neg'}">${Math.abs(v) < eps ? '結清' : (v > 0 ? '+' : '−') + fmt(Math.abs(v), g.base)}</span></div>`; }).join('')}
-      <p class="hint">綠色是該收回的錢，紅色是該付出的錢。</p></section>`;
+      ${ms.map(m => { const st = netStatus(c, m.id, g.base), v = st.v, w = Math.abs(v) / max * 50, zero = Math.abs(v) < eps; return `<div class="net ${st.settled ? 'settled' : ''}"><span class="nm">${esc(m.name)}</span>
+        <span class="track">${zero ? '' : `<span class="fill ${v > 0 ? 'pos' : 'neg'}" style="width:${w.toFixed(1)}%"></span>`}</span>
+        <span class="v num ${zero ? '' : v > 0 ? 'pos' : 'neg'}">${zero ? fmt(0, g.base) : (v > 0 ? '+' : '−') + fmt(Math.abs(v), g.base)}<small class="${st.settled ? 'ok' : ''}">${esc(st.text)}</small></span></div>`; }).join('')}
+      <p class="hint">綠色是該收回的錢，紅色是該付出的錢。還款之後數字會留著，狀態變成結清。</p></section>`;
 }
 
 function tabStats(g, c) {
@@ -660,7 +687,7 @@ function tabStats(g, c) {
     <section class="panel"><h2>各幣別花了多少</h2>${Object.entries(c.byCur).map(([k, v]) => `<div class="net" style="grid-template-columns:1fr auto"><span class="nm">${esc(k)} ${esc(CUR[k]?.n || '')}</span><span class="v num">${fmt(v, k)}</span></div>`).join('')}</section>
     <section class="panel"><h2>報表輸出</h2>
       <div class="btn-row" style="margin-top:0"><button class="btn" data-act="export-pdf">存成 PDF</button><button class="btn ghost" data-act="export-csv">下載 Excel</button></div>
-      <p class="hint">「存成 PDF」會開啟列印視窗，目的地選另存為 PDF。報表包含結算、每人收支、分類與每日統計、逐筆明細和品項。Excel 明細是 CSV 檔，每筆帳一列，附每個人的分攤金額。</p></section>`;
+      <p class="hint">報表包含結算、每人收支、分類與每日統計、逐筆明細和品項。Excel 明細是 CSV 檔，每筆帳一列，附每個人的分攤金額。</p></section>`;
 }
 
 function tabMembers(g) {
@@ -683,12 +710,12 @@ function tabMembers(g) {
 
 /* ---------- sheets ---------- */
 function openSheet(s) { sheet = s; renderSheet(); }
-function closeSheet() { sheet = null; F = null; sheetEl.innerHTML = ''; }
+function closeSheet() { const u = sheet?.url; if (u) setTimeout(() => URL.revokeObjectURL(u), 60000); sheet = null; F = null; sheetEl.innerHTML = ''; }
 function renderSheet() {
   if (!sheet) { sheetEl.innerHTML = ''; return; }
   const a = document.activeElement, keep = a && sheetEl.contains(a) && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const body = $('.sheet-body', sheetEl), top = body ? body.scrollTop : 0;
-  const [title, html, foot] = ({ expense: sheetExpense, transfer: sheetTransfer, group: sheetGroup, invite: sheetInvite, guest: sheetGuest, user: sheetUser })[sheet.type]();
+  const [title, html, foot] = ({ expense: sheetExpense, transfer: sheetTransfer, group: sheetGroup, invite: sheetInvite, guest: sheetGuest, user: sheetUser, pdf: sheetPdf })[sheet.type]();
   sheetEl.innerHTML = `<div class="backdrop" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
     <div class="sheet-head"><h2>${esc(title)}</h2><button class="icon-btn" data-act="sheet-close" aria-label="關閉">${I.x}</button></div>
     <div class="sheet-body">${html}</div>${foot ? `<div class="sheet-foot">${foot}</div>` : ''}</div></div>`;
@@ -891,21 +918,21 @@ const itemsText = e => (e.items || []).map(it => `${it.name}${it.qty > 1 ? ` ×$
 const safeName = t => String(t).replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40);
 
 function reportHtml() {
-  const g = S.group, c = compute(), d = dec(g.base), pays = settle(c.net, d), ms = memberList(), eps = d ? 0.005 : 0.5;
-  const exps = sortedExp('expense'), trs = sortedExp('transfer'), dates = exps.map(e => e.date).filter(Boolean);
+  const g = S.group, c = compute(), d = dec(g.base), pays = settleRows(c, d), ms = memberList(), eps = d ? 0.005 : 0.5;
+  const exps = sortedExp('expense'), dates = exps.map(e => e.date).filter(Boolean);
   const cats = Object.entries(c.byCat).sort((a, b) => b[1] - a[1]), cmax = Math.max(1, ...cats.map(x => x[1]));
   const days = Object.entries(c.byDay).sort((a, b) => a[0] < b[0] ? -1 : 1);
-  const bar = v => `<svg width="120" height="9" aria-hidden="true"><rect width="120" height="9" fill="#e4e4e4"/><rect width="${(v / cmax * 120).toFixed(1)}" height="9" fill="#0C6A6E"/></svg>`;
+  const bar = v => `<div class="rb"><i style="width:${(v / cmax * 120).toFixed(1)}px"></i></div>`;
   const n = Math.max(1, activeMembers().length);
   return `<h1>${esc(g.name)}　分帳報表</h1>
     <p class="meta">${dates.length ? `${esc(dates[0])} 至 ${esc(dates[dates.length - 1])}　` : ''}當地幣別 ${esc(g.tripCur)}　結算幣別 ${esc(g.base)}　製表日 ${ymd()}</p>
     <p class="meta">成員：${ms.map(m => esc(m.name)).join('、')}</p>
     <div class="kpi"><div><span>總支出</span><b>${fmt(c.total, g.base)}</b></div><div><span>每人平均</span><b>${fmt(c.total / n, g.base)}</b></div><div><span>平均每天</span><b>${fmt(c.total / Math.max(1, days.length), g.base)}</b></div><div><span>筆數</span><b>${c.count}</b></div></div>
     <h2>結算：誰該付給誰</h2>
-    ${pays.length ? `<table><thead><tr><th>付款人</th><th>收款人</th><th class="r">金額</th></tr></thead><tbody>${pays.map(p => `<tr><td>${esc(mName(p.from))}</td><td>${esc(mName(p.to))}</td><td class="r">${fmt(p.amount, g.base)}</td></tr>`).join('')}</tbody></table>` : '<p>所有人都已結清。</p>'}
+    ${pays.length ? `<table><thead><tr><th>付款人</th><th>收款人</th><th class="r">金額</th><th>狀態</th></tr></thead><tbody>${pays.map(p => `<tr><td>${esc(mName(p.from))}</td><td>${esc(mName(p.to))}</td><td class="r">${fmt(p.amount, g.base)}</td><td>${p.paid ? `已付${p.date ? `（${esc(p.date.slice(5).replace('-', '/'))}）` : ''}` : '未付'}</td></tr>`).join('')}</tbody></table>` : '<p>不用互相付錢。</p>'}
     <h2>每個人的收支</h2>
-    <table><thead><tr><th>成員</th><th class="r">先墊</th><th class="r">應分攤</th><th class="r">淨額</th><th>狀態</th></tr></thead><tbody>${ms.map(m => { const v = c.net[m.id] || 0; return `<tr><td>${esc(m.name)}</td><td class="r">${fmt(c.paid[m.id] || 0, g.base)}</td><td class="r">${fmt(c.owed[m.id] || 0, g.base)}</td><td class="r">${Math.abs(v) < eps ? fmt(0, g.base) : (v > 0 ? '+' : '−') + fmt(Math.abs(v), g.base)}</td><td>${Math.abs(v) < eps ? '已結清' : v > 0 ? '應收' : '應付'}</td></tr>`; }).join('')}</tbody></table>
-    ${trs.length ? '<p class="meta" style="margin-top:4pt">淨額已扣除下方的還款紀錄。</p>' : ''}
+    <table><thead><tr><th>成員</th><th class="r">先墊</th><th class="r">應分攤</th><th class="r">淨額</th><th>狀態</th></tr></thead><tbody>${ms.map(m => { const st = netStatus(c, m.id, g.base), v = st.v; return `<tr><td>${esc(m.name)}</td><td class="r">${fmt(c.paid[m.id] || 0, g.base)}</td><td class="r">${fmt(c.owed[m.id] || 0, g.base)}</td><td class="r">${Math.abs(v) < eps ? fmt(0, g.base) : (v > 0 ? '+' : '−') + fmt(Math.abs(v), g.base)}</td><td>${esc(st.text)}</td></tr>`; }).join('')}</tbody></table>
+    <p class="meta" style="margin-top:4pt">淨額是先墊減掉應分攤，正數是該收回、負數是該付出；還款後數字不變，只更新狀態。</p>
     <h2>分類統計</h2>
     <table><thead><tr><th>分類</th><th></th><th class="r">金額</th><th class="r">占比</th></tr></thead><tbody>${cats.map(([k, v]) => `<tr><td>${CATS[k] ? CATS[k][1] : '其他'}</td><td>${bar(v)}</td><td class="r">${fmt(v, g.base)}</td><td class="r">${c.total ? (v / c.total * 100).toFixed(1) : '0.0'}%</td></tr>`).join('')}</tbody></table>
     <h2>每日支出</h2>
@@ -916,16 +943,64 @@ function reportHtml() {
         <td>${esc(e.title)}${e.note ? `<div class="its">備註：${esc(e.note)}</div>` : ''}${e.items?.length ? `<div class="its">${esc(itemsText(e))}</div>` : ''}</td>
         <td style="white-space:nowrap">${esc(mName(e.payer))}</td><td class="r">${fmt(e.amount, e.currency)}</td><td class="r">${e.currency === g.base ? '' : fmtRate(e.rate || 1)}</td><td class="r">${fmt(e.baseAmount, g.base)}</td><td>${esc(splitText(e))}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="6">合計</td><td class="r">${fmt(c.total, g.base)}</td><td></td></tr></tfoot></table>
-    ${trs.length ? `<h2>還款紀錄</h2><table><thead><tr><th>日期</th><th>付款人</th><th>收款人</th><th class="r">金額</th></tr></thead><tbody>${trs.map(e => `<tr><td>${esc(e.date || '')}</td><td>${esc(mName(e.from))}</td><td>${esc(mName(e.to))}</td><td class="r">${fmt(e.baseAmount, g.base)}</td></tr>`).join('')}</tbody></table>` : ''}
     <p class="meta" style="margin-top:12pt">每筆帳以記帳當下的匯率換算成 ${esc(g.base)}；匯率欄是 1 單位原幣可換得的 ${esc(g.base)}。</p>`;
 }
-function exportPdf() {
+function printReport() {
   if (!S.group) return;
   $('#print').innerHTML = reportHtml();
   const old = document.title; document.title = `${safeName(S.group.name)}_分帳報表_${ymd()}`;
   const back = () => { document.title = old; window.removeEventListener('afterprint', back); };
   window.addEventListener('afterprint', back); setTimeout(back, 60000);
   try { window.print(); } catch { toast('這個瀏覽器不能列印，請改用 Chrome 或 Safari 開啟'); }
+}
+const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(Object.assign(new Error('load'), { code: 'load' })); document.head.appendChild(el); });
+const canShareFile = f => { try { return !!(navigator.canShare && navigator.canShare({ files: [f] })); } catch { return false; } };
+// 手機上瀏覽器的列印常常沒有反應，所以直接在頁面裡把報表做成 PDF 檔。
+async function exportPdf() {
+  if (!S.group) return;
+  const name = `${safeName(S.group.name)}_分帳報表_${ymd()}.pdf`;
+  openSheet({ type: 'pdf', state: 'build', msg: '載入製作工具' });
+  const my = sheet, step = m => { if (sheet === my) { my.msg = m; renderSheet(); } };
+  let stage;
+  try {
+    if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    stage = document.createElement('div'); stage.id = 'pdfstage'; stage.className = 'report'; stage.innerHTML = reportHtml(); document.body.appendChild(stage);
+    try { await document.fonts.ready; } catch { }
+    await new Promise(r => setTimeout(r, 80));
+    step('繪製報表');
+    const W = stage.offsetWidth, H = stage.scrollHeight, top0 = stage.getBoundingClientRect().top;
+    // 可以換頁的位置：每一列、每個標題的上緣（表格的第一列不算，免得標題和內容被拆開）
+    const cuts = [...stage.querySelectorAll('tbody tr:not(:first-child), tfoot tr, h2, p, .kpi')].map(el => el.getBoundingClientRect().top - top0).filter(v => v > 0).sort((x, y) => x - y);
+    const scale = Math.max(1, Math.min(2, Math.sqrt(12e6 / (W * H))));   // iPhone 的畫布面積有上限
+    const canvas = await window.html2canvas(stage, { scale, backgroundColor: '#ffffff', logging: false });
+    const pageH = W * 273 / 186, pages = [];
+    for (let y = 0; y < H - 1;) { let end = y + pageH; if (end < H) { const c = cuts.filter(v => v <= end && v > y + pageH * 0.4).pop(); if (c) end = c; } else end = H; pages.push([y, end]); y = end; }
+    step('組成 PDF');
+    const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' }), k = canvas.width / W;
+    pages.forEach(([a, b], i) => {
+      const pc = document.createElement('canvas'); pc.width = canvas.width; pc.height = Math.max(1, Math.round((b - a) * k));
+      const cx = pc.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, pc.width, pc.height); cx.drawImage(canvas, 0, Math.round(a * k), pc.width, pc.height, 0, 0, pc.width, pc.height);
+      if (i) doc.addPage();
+      doc.addImage(pc.toDataURL('image/jpeg', 0.9), 'JPEG', 12, 12, 186, (b - a) * 186 / W);
+      doc.setFontSize(9); doc.setTextColor(120); doc.text(`${i + 1} / ${pages.length}`, 198, 289, { align: 'right' });
+    });
+    const blob = doc.output('blob'), file = new File([blob], name, { type: 'application/pdf' });
+    if (sheet !== my) return;
+    Object.assign(my, { state: 'ready', name, file, url: URL.createObjectURL(blob), pages: pages.length, canShare: canShareFile(file) }); renderSheet();
+  } catch (e) {
+    console.error('PDF 製作失敗', e);
+    if (sheet === my) { my.state = 'fail'; my.msg = e?.code === 'load' ? '製作 PDF 的工具載入不了，請確認網路連線後再試一次。' : '這份報表沒辦法在這個瀏覽器裡做成 PDF。'; renderSheet(); }
+  } finally { stage?.remove(); }
+}
+function sheetPdf() {
+  const t = sheet;
+  if (t.state === 'build') return ['製作 PDF', `<p class="dots" style="font-weight:900">${esc(t.msg)}</p><p class="sub">帳目多的時候要等幾秒。</p>`, ''];
+  if (t.state === 'fail') return ['製作 PDF', `<p class="err">${esc(t.msg)}</p><p class="sub">也可以改用瀏覽器的列印功能，目的地選「另存為 PDF」。</p>`, `<button class="btn ghost" data-act="pdf-print">改用列印</button><button class="btn" data-act="export-pdf">再試一次</button>`];
+  return ['PDF 做好了', `<p style="font-weight:700;overflow-wrap:anywhere">${esc(t.name)}</p><p class="sub">共 ${t.pages} 頁。${t.canShare ? '「分享或儲存」可以存到手機的檔案、傳到 LINE 或寄出去。' : ''}</p>
+    <p class="sub">按了沒有反應，多半是開在 LINE 這類 App 的內建瀏覽器裡，請改用 Chrome 或 Safari 開啟這個網頁。</p>
+    <p class="sub">想要文字可以選取的版本，可以<button class="link" data-act="pdf-print">改用瀏覽器列印</button>。</p>`,
+    `${t.canShare ? `<button class="btn" data-act="pdf-share">分享或儲存</button>` : ''}<a class="btn ${t.canShare ? 'ghost' : ''}" href="${t.url}" download="${esc(t.name)}">下載 PDF</a>`];
 }
 function exportCsv() {
   if (!S.group) return;
@@ -937,10 +1012,12 @@ function exportCsv() {
     const sh = sharesOf(e);
     rows.push([e.date, '支出', CATS[e.category] ? CATS[e.category][1] : '其他', e.title, mName(e.payer), e.amount, e.currency, e.rate, e.baseAmount, splitText(e), ...ms.map(m => sh[m.id] ? roundTo(sh[m.id], 2) : ''), e.note || '', itemsText(e)]);
   }
-  rows.push([], ['成員', `先墊(${g.base})`, `應分攤(${g.base})`, `淨額(${g.base}，正數為應收)`]);
-  for (const m of ms) rows.push([m.name, roundTo(c.paid[m.id] || 0, 2), roundTo(c.owed[m.id] || 0, 2), roundTo(c.net[m.id] || 0, 2)]);
+  rows.push([], ['成員', `先墊(${g.base})`, `應分攤(${g.base})`, `淨額(${g.base}，正數為應收)`, `尚未結清(${g.base})`, '狀態']);
+  for (const m of ms) rows.push([m.name, roundTo(c.paid[m.id] || 0, 2), roundTo(c.owed[m.id] || 0, 2), roundTo(c.gross[m.id] || 0, 2), roundTo(c.net[m.id] || 0, 2), netStatus(c, m.id, g.base).text]);
   const blob = new Blob(['\uFEFF' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${safeName(g.name)}_分帳明細_${ymd()}.csv`;
+  const fname = `${safeName(g.name)}_分帳明細_${ymd()}.csv`, file = new File([blob], fname, { type: 'text/csv' });
+  if (matchMedia('(pointer:coarse)').matches && canShareFile(file)) { navigator.share({ files: [file], title: fname }).catch(e => { if (e?.name !== 'AbortError') toast('分享沒有成功，請改用 Chrome 或 Safari 開啟'); }); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   toast('已下載 Excel 明細');
 }
@@ -1041,10 +1118,15 @@ document.addEventListener('click', async ev => {
     case 'f-item-add': F.items.push({ name: '', orig: '', qty: 0, amount: '' }); F.touched.add('items'); renderSheet(); $(`#f-it-n-${F.items.length - 1}`)?.focus(); break;
     case 'f-item-del': F.items.splice(+el.dataset.i, 1); F.touched.add('items'); if (!F.items.length) F.ai.delete('items'); renderSheet(); break;
     case 'export-pdf': exportPdf(); break;
+    case 'pdf-print': closeSheet(); printReport(); break;
+    case 'pdf-share': try { await navigator.share({ files: [sheet.file], title: sheet.name }); } catch (e) { if (e?.name !== 'AbortError') toast('分享沒有成功，請改按「下載 PDF」'); } break;
     case 'export-csv': exportCsv(); break;
     case 'f-save': saveExpense(); break;
     case 'f-delete': if (confirm('確定刪除這筆帳目？')) { store.deleteExpense(S.gid, F.id); closeSheet(); toast('已刪除'); } break;
-    case 'pay': openSheet({ type: 'transfer', id: null, from: el.dataset.from, to: el.dataset.to, amount: el.dataset.amt, date: ymd() }); break;
+    case 'pay': { const now = Date.now(), amt = +el.dataset.amt; if (!(amt > 0)) break;
+      store.saveExpense(S.gid, null, { kind: 'transfer', from: el.dataset.from, to: el.dataset.to, amount: amt, currency: S.group.base, rate: 1, baseAmount: amt, date: ymd(), createdBy: S.user.uid, createdAt: now, updatedAt: now });
+      toast('已記為已付'); break; }
+    case 'unpay': store.deleteExpense(S.gid, el.dataset.id); toast('已取消已付'); break;
     case 't-save': {
       const from = $('#t-from').value, to = $('#t-to').value, amt = num($('#t-amt').value), date = $('#t-date').value || ymd();
       Object.assign(sheet, { from, to, amount: $('#t-amt').value, date });
