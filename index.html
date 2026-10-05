@@ -229,38 +229,69 @@ input[type=date].inp{-webkit-appearance:none;appearance:none;min-width:0}
 .viewer img{max-width:100%;max-height:100%;border-radius:8px}
 #toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:12px;font-weight:700;font-size:14px;max-width:86vw;opacity:0;pointer-events:none;transition:opacity .2s}
 #toast.on{opacity:1}
+.item{display:grid;grid-template-columns:minmax(0,1fr) 6.5em 36px;gap:8px;align-items:start;margin-bottom:8px}
+.item .inp{min-height:42px}
+.item .inp.num{text-align:right}
+.item small{display:block;color:var(--ink2);font-size:12px;margin:3px 2px 0;overflow-wrap:anywhere}
+.item .icon-btn{width:36px;height:42px;color:var(--ink2)}
+#print{display:none}
+@media print{
+  :root{padding:0}
+  html,body{background:#fff!important;color:#111!important}
+  #app,#sheet,#toast,.viewer{display:none!important}
+  #print{display:block;font-size:10.5pt;line-height:1.45;color:#111}
+  #print h1{font-size:20pt;font-weight:900;margin:0 0 2pt}
+  #print h2{font-size:12.5pt;font-weight:900;margin:16pt 0 6pt;padding-bottom:3pt;border-bottom:1.5pt solid #111;break-after:avoid}
+  #print .meta{color:#444;margin:0}
+  #print table{width:100%;border-collapse:collapse;font-size:9.5pt}
+  #print th,#print td{border-bottom:.5pt solid #bbb;padding:4pt 5pt;text-align:left;vertical-align:top}
+  #print th{font-weight:700;border-bottom:1pt solid #111}
+  #print .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #print tr{break-inside:avoid}
+  #print .its{color:#444;font-size:8.5pt;margin-top:2pt}
+  #print .kpi{display:flex;gap:18pt;flex-wrap:wrap;margin-top:8pt}
+  #print .kpi div{min-width:90pt}
+  #print .kpi span{display:block;color:#444;font-size:9pt}
+  #print .kpi b{font-size:14pt;font-weight:800}
+  #print tfoot td{font-weight:800;border-bottom:0;border-top:1pt solid #111}
+  @page{margin:14mm}
+}
 </style>
 </head>
 <body>
 <div id="app"><div class="boot">載入中…</div></div>
 <div id="sheet"></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="print"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="pick" accept="image/*" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
 
+<script src="config.js"></script>
 <script type="module">
 /* =====================================================================
-   設定區：把 Firebase 主控台給你的 firebaseConfig 整段貼進來。
-   沒填的時候會進入「試用模式」（資料只存在這台裝置、沒有登入與邀請）。
+   設定：建議寫在同一個資料夾的 config.js（之後更新 index.html 不用重貼）。
+   沒有 config.js 時，才會用下面這段；兩邊都沒填就進入「試用模式」。
    ===================================================================== */
-const firebaseConfig = {
-  apiKey: "AIzaSyCBdgSkjIbqff9vw2BgkVzAP3Zq7F0KQXI",
-  authDomain: "account-sharing-87dd8.firebaseapp.com",
-  projectId: "account-sharing-87dd8",
-  storageBucket: "account-sharing-87dd8.firebasestorage.app",
-  messagingSenderId: "486287961104",
-  appId: "1:486287961104:web:5897c835e1433e92742e95",
-  measurementId: "G-71W1X9HF5S"
+const INLINE_FIREBASE_CONFIG = {
+  apiKey: "貼上你的_API_KEY",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
 };
 // App Check（reCAPTCHA Enterprise）的網站金鑰。收據辨識（Firebase AI Logic）需要它。
-const RECAPTCHA_ENTERPRISE_SITE_KEY = "6Ld8kd8tAAAAAKHV1t5T-osHipeWKyMqi13xxZ1i";
+const INLINE_RECAPTCHA_SITE_KEY = "";
 // 辨識收據用的 Gemini 模型；模型下架時只要改這一行。
 const GEMINI_MODEL = "gemini-3.8-flash";
 const FIREBASE_VERSION = "12.19.0";
 /* ===================================================================== */
 
-const CONFIGURED = !!firebaseConfig.projectId && !/貼上/.test(firebaseConfig.apiKey);
+const EXT = window.TRIP_CONFIG || {};
+const firebaseConfig = EXT.firebaseConfig?.apiKey ? EXT.firebaseConfig : INLINE_FIREBASE_CONFIG;
+const RECAPTCHA_ENTERPRISE_SITE_KEY = EXT.recaptchaSiteKey || INLINE_RECAPTCHA_SITE_KEY;
+const CONFIGURED = !!firebaseConfig.projectId && !!firebaseConfig.apiKey && !/貼上/.test(firebaseConfig.apiKey);
 
 /* ---------- 小工具 ---------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -305,7 +336,7 @@ async function loadRates(force) {
 }
 const rateOf = (cur, base) => (rates.map[cur] && rates.map[base]) ? Number((rates.map[base] / rates.map[cur]).toPrecision(5)) : null;
 const dec = c => CUR[c]?.d ?? 2;
-const fmt = (v, c) => (CUR[c]?.s ?? (esc(String(c || '').slice(0, 4)) + ' ')) + new Intl.NumberFormat('zh-TW', { minimumFractionDigits: dec(c), maximumFractionDigits: dec(c) }).format(v || 0);
+const fmt = (v, c) => ((v || 0) < 0 ? '−' : '') + (CUR[c]?.s ?? (esc(String(c || '').slice(0, 4)) + ' ')) + new Intl.NumberFormat('zh-TW', { minimumFractionDigits: dec(c), maximumFractionDigits: dec(c) }).format(Math.abs(v || 0));
 const fmtRate = r => r >= 100 ? r.toFixed(1) : r >= 1 ? r.toFixed(3) : r >= 0.01 ? r.toFixed(4) : r.toPrecision(3);
 const rateSrcText = () => rates.src === 'live' ? '即時匯率' : rates.src === 'cache' ? '上次取得的匯率' : '內建概略匯率，請確認';
 const curOptions = sel => Object.entries(CUR).map(([k, v]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${k} ${v.n}</option>`).join('');
@@ -328,7 +359,7 @@ async function cloudStore() {
   try { db = Fs.initializeFirestore(app, { localCache: Fs.persistentLocalCache({ tabManager: Fs.persistentMultipleTabManager() }) }); }
   catch { db = Fs.getFirestore(app); }
   const gref = gid => Fs.doc(db, 'groups', gid);
-  const fail = e => { console.error(e); toast(e?.code === 'permission-denied' ? '沒有權限，請確認你仍在這個行程裡' : '同步失敗，連上網路後會再試'); };
+  const fail = what => e => { console.error(what, e); toast(e?.code === 'permission-denied' ? `${what}被拒絕（沒有權限）` : `${what}沒有成功（${e?.code || '連線問題'}）`); };
   let model;
   const me = () => auth.currentUser?.uid;
   return {
@@ -340,27 +371,27 @@ async function cloudStore() {
       catch (e) { if (/popup-blocked|operation-not-supported/.test(e?.code || '')) await U.signInWithRedirect(auth, p); else if (!/popup-closed|cancelled/.test(e?.code || '')) throw e; }
     },
     signOut: () => U.signOut(auth),
-    watchGroups: cb => Fs.onSnapshot(Fs.query(Fs.collection(db, 'groups'), Fs.where('memberUids', 'array-contains', me())), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail),
-    watchGroup: (gid, cb) => Fs.onSnapshot(gref(gid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), e => { fail(e); cb(null); }),
-    watchExpenses: (gid, cb) => Fs.onSnapshot(Fs.collection(db, 'groups', gid, 'expenses'), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail),
-    createGroup(data) { const r = Fs.doc(Fs.collection(db, 'groups')); Fs.setDoc(r, data).catch(fail); return r.id; },
-    updateGroup: (gid, patch) => Fs.updateDoc(gref(gid), patch).catch(fail),
-    setMember: (gid, id, m) => Fs.updateDoc(gref(gid), { ['members.' + id]: m }).catch(fail),
-    removeMember: (gid, id) => Fs.updateDoc(gref(gid), { ['members.' + id]: Fs.deleteField() }).catch(fail),
+    watchGroups: cb => Fs.onSnapshot(Fs.query(Fs.collection(db, 'groups'), Fs.where('memberUids', 'array-contains', me())), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail('讀取行程列表')),
+    watchGroup: (gid, cb) => Fs.onSnapshot(gref(gid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), e => { fail('讀取行程')(e); cb(null, e); }),
+    watchExpenses: (gid, cb) => Fs.onSnapshot(Fs.collection(db, 'groups', gid, 'expenses'), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), fail('讀取帳目')),
+    async createGroup(data) { const r = Fs.doc(Fs.collection(db, 'groups')); await Fs.setDoc(r, data); return r.id; },
+    updateGroup: (gid, patch) => Fs.updateDoc(gref(gid), patch).catch(fail('更新行程')),
+    setMember: (gid, id, m) => Fs.updateDoc(gref(gid), { ['members.' + id]: m }).catch(fail('新增成員')),
+    removeMember: (gid, id) => Fs.updateDoc(gref(gid), { ['members.' + id]: Fs.deleteField() }).catch(fail('移除成員')),
     joinGroup: (gid, code, m) => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayUnion(me()), ['members.' + me()]: m, joinedWith: code }),
-    leaveGroup: gid => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayRemove(me()), ['members.' + me() + '.left']: true }).catch(fail),
+    leaveGroup: gid => Fs.updateDoc(gref(gid), { memberUids: Fs.arrayRemove(me()), ['members.' + me() + '.left']: true }).catch(fail('退出行程')),
     async deleteGroup(gid) {
       for (const sub of ['expenses', 'receipts']) { const s = await Fs.getDocs(Fs.collection(db, 'groups', gid, sub)); await Promise.all(s.docs.map(d => Fs.deleteDoc(d.ref))); }
       await Fs.deleteDoc(gref(gid));
     },
     saveExpense(gid, id, data, receipt) {
       const r = id ? Fs.doc(db, 'groups', gid, 'expenses', id) : Fs.doc(Fs.collection(db, 'groups', gid, 'expenses'));
-      Fs.setDoc(r, data).catch(fail);
+      Fs.setDoc(r, data).catch(fail('儲存帳目'));
       const rr = Fs.doc(db, 'groups', gid, 'receipts', r.id);
-      if (receipt) Fs.setDoc(rr, { img: receipt, at: Date.now() }).catch(fail); else if (receipt === null) Fs.deleteDoc(rr).catch(() => { });
+      if (receipt) Fs.setDoc(rr, { img: receipt, at: Date.now() }).catch(fail('儲存收據照片')); else if (receipt === null) Fs.deleteDoc(rr).catch(() => { });
       return r.id;
     },
-    deleteExpense(gid, id) { Fs.deleteDoc(Fs.doc(db, 'groups', gid, 'expenses', id)).catch(fail); Fs.deleteDoc(Fs.doc(db, 'groups', gid, 'receipts', id)).catch(() => { }); },
+    deleteExpense(gid, id) { Fs.deleteDoc(Fs.doc(db, 'groups', gid, 'expenses', id)).catch(fail('刪除帳目')); Fs.deleteDoc(Fs.doc(db, 'groups', gid, 'receipts', id)).catch(() => { }); },
     async getReceipt(gid, id) { const s = await Fs.getDoc(Fs.doc(db, 'groups', gid, 'receipts', id)); return s.exists() ? s.data().img : null; },
     async recognize(prompt, b64) {
       if (!model) { const G = await import(base + 'firebase-ai.js'); const ai = G.getAI(app, { backend: new G.GoogleAIBackend() }); model = G.getGenerativeModel(ai, { model: GEMINI_MODEL, generationConfig: { responseMimeType: 'application/json' } }); }
@@ -554,7 +585,7 @@ function tabList(g) {
     const n = e.split?.mode === 'custom' ? Object.values(e.split.shares || {}).filter(v => +v > 0).length : (e.split?.ids || []).length;
     const cat = CATS[e.category] ? e.category : 'other';
     return `<button class="row" data-act="edit-exp" data-id="${esc(e.id)}"><span class="seal c-${cat}">${CATS[cat][0]}</span>
-      <span class="row-main"><b>${esc(e.title)}${e.hasReceipt ? I.clip : ''}</b><small>${esc(mName(e.payer))}付　${n} 人分</small></span>
+      <span class="row-main"><b>${esc(e.title)}${e.hasReceipt ? I.clip : ''}</b><small>${esc(mName(e.payer))}付　${n} 人分${e.items?.length ? `　${e.items.length} 項` : ''}</small></span>
       <span class="row-amt"><b class="num">${fmt(e.amount, e.currency)}</b>${e.currency !== g.base ? `<small class="num">≈ ${fmt(e.baseAmount, g.base)}</small>` : ''}</span></button>`;
   }).join('')}</div>`).join('');
 }
@@ -594,7 +625,10 @@ function tabStats(g, c) {
     <section class="panel"><h2>每個人先墊的與該分攤的</h2>${memberList().filter(m => (c.paid[m.id] || 0) + (c.owed[m.id] || 0) > 0).map(m => `<div class="duo"><div class="nm">${esc(m.name)}</div>
       <div class="l"><span>先墊</span><span class="track"><span class="fill" style="width:${((c.paid[m.id] || 0) / pmax * 100).toFixed(1)}%"></span></span><span class="v num">${fmt(c.paid[m.id] || 0, g.base)}</span></div>
       <div class="l"><span>分攤</span><span class="track"><span class="fill b" style="width:${((c.owed[m.id] || 0) / pmax * 100).toFixed(1)}%"></span></span><span class="v num">${fmt(c.owed[m.id] || 0, g.base)}</span></div></div>`).join('')}</section>
-    <section class="panel"><h2>各幣別花了多少</h2>${Object.entries(c.byCur).map(([k, v]) => `<div class="net" style="grid-template-columns:1fr auto"><span class="nm">${esc(k)} ${esc(CUR[k]?.n || '')}</span><span class="v num">${fmt(v, k)}</span></div>`).join('')}</section>`;
+    <section class="panel"><h2>各幣別花了多少</h2>${Object.entries(c.byCur).map(([k, v]) => `<div class="net" style="grid-template-columns:1fr auto"><span class="nm">${esc(k)} ${esc(CUR[k]?.n || '')}</span><span class="v num">${fmt(v, k)}</span></div>`).join('')}</section>
+    <section class="panel"><h2>報表輸出</h2>
+      <div class="btn-row" style="margin-top:0"><button class="btn" data-act="export-pdf">列印或存成 PDF</button><button class="btn ghost" data-act="export-csv">下載 Excel 明細</button></div>
+      <p class="hint">PDF 報表包含結算、每人收支、分類與每日統計、逐筆明細和品項。Excel 明細是 CSV 檔，每筆帳一列，附每個人的分攤金額。</p></section>`;
 }
 
 function tabMembers(g) {
@@ -635,10 +669,11 @@ function newForm(e) {
   const g = S.group, act = activeMembers().map(m => m.id);
   if (e) return { id: e.id, kind: 'expense', title: e.title || '', amount: String(e.amount ?? ''), currency: e.currency, rate: String(e.rate ?? 1), rateManual: true, date: e.date, category: e.category || 'other', payer: e.payer,
     mode: e.split?.mode || 'equal', ids: new Set(e.split?.ids || Object.keys(e.split?.shares || {})), shares: Object.fromEntries(Object.entries(e.split?.shares || {}).map(([k, v]) => [k, String(v)])), note: e.note || '',
+    items: (e.items || []).map(it => ({ name: it.name || '', orig: it.orig || '', qty: it.qty || 0, amount: it.amount == null ? '' : String(it.amount) })),
     hasReceipt: !!e.hasReceipt, receipt: undefined, receiptChanged: false, ocr: 'idle', ocrMsg: '', ai: new Set(), touched: new Set(), err: '', createdAt: e.createdAt, createdBy: e.createdBy };
   const cur = g.tripCur || g.base;
   return { id: null, kind: 'expense', title: '', amount: '', currency: cur, rate: String(rateOf(cur, g.base) || 1), rateManual: false, date: ymd(), category: 'food', payer: act.includes(S.user.uid) ? S.user.uid : act[0],
-    mode: 'equal', ids: new Set(act), shares: {}, note: '', hasReceipt: false, receipt: undefined, receiptChanged: false, ocr: 'idle', ocrMsg: '', ai: new Set(), touched: new Set(), err: '' };
+    mode: 'equal', ids: new Set(act), shares: {}, note: '', items: [], hasReceipt: false, receipt: undefined, receiptChanged: false, ocr: 'idle', ocrMsg: '', ai: new Set(), touched: new Set(), err: '' };
 }
 const convHtml = () => {
   const g = S.group, a = num(F.amount), r = num(F.rate);
@@ -648,6 +683,11 @@ const convHtml = () => {
     <button class="link" data-act="f-rate-live">${F.rateManual ? '改用最新匯率' : esc(rateSrcText())}</button>`;
 };
 const eachText = () => { const a = num(F.amount), n = F.ids.size; return a > 0 && n ? `每人 ${fmt(a / n, F.currency)}，共 ${n} 人` : `選了 ${n} 人`; };
+const itemsSumText = () => {
+  const vals = F.items.map(it => num(it.amount)).filter(Number.isFinite); if (!vals.length) return '';
+  const sum = vals.reduce((t, v) => t + v, 0), a = num(F.amount), diff = a > 0 ? roundTo(a - sum, 2) : 0;
+  return `品項合計 ${fmt(sum, F.currency)}` + (a > 0 ? (Math.abs(diff) < tol(F.currency) ? '，和總金額相符' : `，和總金額差 ${fmt(Math.abs(diff), F.currency)}（常見原因是稅、服務費或折扣）`) : '');
+};
 const tol = c => 0.5 * 10 ** -dec(c);   // 各自金額允許的進位誤差
 const evenParts = (a, n, c) => { const p = 10 ** dec(c), u = Math.round(a * p), q = Math.floor(u / n), r = u - q * n; return Array.from({ length: n }, (_, i) => (q + (i < r ? 1 : 0)) / p); };
 const remainText = () => { const a = num(F.amount) || 0, s = Object.values(F.shares).reduce((t, v) => t + (num(v) || 0), 0), left = roundTo(a - s, 2), ok = Math.abs(left) < tol(F.currency); return { ok, text: ok ? '金額剛好分完' : left > 0 ? `還有 ${fmt(left, F.currency)} 沒分` : `多分了 ${fmt(-left, F.currency)}` }; };
@@ -671,13 +711,19 @@ function sheetExpense() {
     <div class="two">${fld('amount', '金額', `<input class="inp big num" id="f-amount" inputmode="decimal" placeholder="0" value="${esc(F.amount)}" autocomplete="off">`)}
       ${fld('currency', '幣別', `<select class="inp big" id="f-currency" style="font-size:18px">${curOptions(F.currency)}</select>`)}</div>
     <div class="conv" id="f-conv">${convHtml()}</div>
-    ${fld('title', '品項或店家', `<input class="inp" id="f-title" placeholder="例如 晚餐、計程車" value="${esc(F.title)}" maxlength="60" autocomplete="off">`)}
+    ${fld('title', '店家或名稱', `<input class="inp" id="f-title" placeholder="例如 晚餐、計程車" value="${esc(F.title)}" maxlength="60" autocomplete="off">`)}
     <div class="two even">${fld('date', '日期', `<input class="inp" type="date" id="f-date" value="${esc(F.date)}">`)}
       <div class="field"><span class="lab">誰先付的</span><select class="inp" id="f-payer" aria-label="誰先付的">${ms.map(m => `<option value="${esc(m.id)}" ${F.payer === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></div></div>
     <div class="field ${F.ai.has('category') ? 'ai' : ''}"><span class="lab">分類<span class="tag">自動辨識</span></span><div class="chips">${Object.entries(CATS).map(([k, v]) => `<button class="chip cat" data-act="f-cat" data-v="${k}" aria-pressed="${F.category === k}">${v[1]}</button>`).join('')}</div></div>
     <div class="field"><span class="lab">分給誰</span>
       <div class="seg"><button data-act="f-mode" data-v="equal" aria-pressed="${F.mode === 'equal'}">平均分</button><button data-act="f-mode" data-v="custom" aria-pressed="${F.mode === 'custom'}">各自金額</button></div>
       <div id="f-split">${split}</div></div>
+    <div class="field ${F.ai.has('items') ? 'ai' : ''}"><span class="lab">品項明細<span class="tag">自動辨識</span></span>
+      ${F.items.map((it, i) => `<div class="item"><div><input class="inp" id="f-it-n-${i}" data-item="${i}" data-k="name" value="${esc(it.name)}" placeholder="品項" maxlength="60" autocomplete="off" aria-label="第 ${i + 1} 個品項名稱">${it.orig || it.qty > 1 ? `<small>${esc(it.orig)}${it.qty > 1 ? ` ×${esc(it.qty)}` : ''}</small>` : ''}</div>
+        <input class="inp num" id="f-it-a-${i}" data-item="${i}" data-k="amount" inputmode="decimal" value="${esc(it.amount)}" placeholder="0" aria-label="第 ${i + 1} 個品項金額">
+        <button class="icon-btn" data-act="f-item-del" data-i="${i}" aria-label="刪除第 ${i + 1} 個品項">${I.x}</button></div>`).join('')}
+      <p class="sub num" id="f-items-sum" style="margin:0 0 8px">${F.items.length ? esc(itemsSumText()) : '拍收據會自動列出買了什麼，也可以自己加。'}</p>
+      <button class="btn ghost small" data-act="f-item-add">加一個品項</button></div>
     <div class="field"><label for="f-note">備註</label><input class="inp" id="f-note" value="${esc(F.note)}" maxlength="120" autocomplete="off"></div>`;
   const foot = `${F.id ? `<button class="btn danger" data-act="f-delete">刪除</button>` : ''}<button class="btn" data-act="f-save">${F.id ? '儲存修改' : '記下這筆'}</button>`;
   return [F.id ? '修改帳目' : '記一筆', html, foot];
@@ -744,13 +790,14 @@ async function prepareImage(file) {
 function ocrPrompt() {
   const g = S.group;
   return `這是一張旅遊途中拍的收據、發票、帳單、刷卡單或價目牌。請讀出「實際支付的總金額」和幣別，只回傳一個 JSON 物件，不要任何其他文字：
-{"merchant": 字串或 null, "amount": 數字或 null, "currency": "ISO 4217 三碼" 或 null, "date": "YYYY-MM-DD" 或 null, "category": "food"|"transit"|"stay"|"shop"|"fun"|"other", "confidence": 0 到 1}
+{"merchant": 字串或 null, "amount": 數字或 null, "currency": "ISO 4217 三碼" 或 null, "date": "YYYY-MM-DD" 或 null, "category": "food"|"transit"|"stay"|"shop"|"fun"|"other", "items": [{"name": 字串, "orig": 字串或 null, "qty": 數字, "amount": 數字}], "confidence": 0 到 1}
 規則：
 1. amount 取含稅、含服務費的最終應付總額（合計、總計、Total、Grand Total、合計金額、お会計、합계 等），不是小計、不是收到的現金、不是找零，也不是點數或折抵。只要數字，不要千分位符號。
 2. currency 依收據上的符號、文字、語言、地址、電話國碼判斷。日文收據的 ¥ 或 円 是 JPY；簡體中文的 ¥ 或 元 是 CNY；NT$ 或繁體中文的 元 是 TWD；₩ 是 KRW；฿ 是 THB；₫ 是 VND；€ 是 EUR；£ 是 GBP；只有 $ 時依國家判斷是 USD、SGD、HKD、AUD、CAD 等。真的看不出來時用這個行程的當地幣別 ${g.tripCur}。
 3. merchant 用收據上的店名原文，沒有就給最主要的品項。
 4. date 是交易日期；沒有印年份時以 ${ymd()} 往前最近的日期推定；看不到就給 null。
-5. 看不清楚的欄位給 null，不要猜。category：餐飲 food、交通 transit、住宿 stay、購物 shop、門票或娛樂 fun、其他 other。`;
+5. 看不清楚的欄位給 null，不要猜。category：餐飲 food、交通 transit、住宿 stay、購物 shop、門票或娛樂 fun、其他 other。
+6. items 依收據上的順序列出每一個購買品項，最多 30 項。name 用繁體中文：原文不是中文時翻譯成台灣慣用的說法，翻不出來就照抄原文。orig 是收據上印的原文；原文本來就是中文時 orig 給 null。qty 是數量，沒寫就給 1。amount 是這一列的金額（已乘上數量），折扣列用負數。小計、稅金、服務費、合計、付款方式、找零都不要列入。只有總額、沒有明細的單據（例如刷卡簽單）就給空陣列 []。`;
 }
 async function startFromPhoto(file) {
   if (!file || !S.group) return;
@@ -792,8 +839,78 @@ function applyOcr(r) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(r.date || '') && r.date <= ymd(new Date(Date.now() + 864e5))) set('date', r.date);
   if (typeof r.merchant === 'string' && r.merchant.trim()) set('title', r.merchant.trim().slice(0, 60));
   if (CATS[r.category]) set('category', r.category);
+  if (Array.isArray(r.items) && !F.touched.has('items')) {
+    const its = r.items.slice(0, 40).map(it => { const name = String(it?.name || it?.orig || '').trim().slice(0, 60), orig = String(it?.orig || '').trim().slice(0, 60), q = num(it?.qty), a = num(it?.amount);
+      return { name, orig: orig && orig !== name ? orig : '', qty: q > 0 ? q : 0, amount: Number.isFinite(a) ? String(a) : '' }; }).filter(it => it.name);
+    if (its.length) { F.items = its; F.ai.add('items'); }
+  }
   if (F.ai.has('amount')) { F.ocr = 'ok'; } else { F.ocr = 'fail'; F.ocrMsg = '照片裡找不到總金額，請手動輸入。'; }
   renderSheet();
+}
+
+/* =====================================================================
+   報表輸出
+   ===================================================================== */
+const sortedExp = kind => S.expenses.filter(e => (e.kind === 'transfer') === (kind === 'transfer')).sort((a, b) => (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : (a.createdAt || 0) - (b.createdAt || 0));
+const splitText = e => e.split?.mode === 'custom'
+  ? Object.entries(e.split.shares || {}).map(([id, v]) => `${mName(id)} ${fmt(+v, e.currency)}`).join('、')
+  : `${(e.split?.ids || []).map(mName).join('、')} 平均分`;
+const itemsText = e => (e.items || []).map(it => `${it.name}${it.qty > 1 ? ` ×${it.qty}` : ''}${it.amount != null ? ` ${fmt(it.amount, e.currency)}` : ''}`).join('；');
+const safeName = t => String(t).replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40);
+
+function reportHtml() {
+  const g = S.group, c = compute(), d = dec(g.base), pays = settle(c.net, d), ms = memberList(), eps = d ? 0.005 : 0.5;
+  const exps = sortedExp('expense'), trs = sortedExp('transfer'), dates = exps.map(e => e.date).filter(Boolean);
+  const cats = Object.entries(c.byCat).sort((a, b) => b[1] - a[1]), cmax = Math.max(1, ...cats.map(x => x[1]));
+  const days = Object.entries(c.byDay).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const bar = v => `<svg width="120" height="9" aria-hidden="true"><rect width="120" height="9" fill="#e4e4e4"/><rect width="${(v / cmax * 120).toFixed(1)}" height="9" fill="#0C6A6E"/></svg>`;
+  const n = Math.max(1, activeMembers().length);
+  return `<h1>${esc(g.name)}　分帳報表</h1>
+    <p class="meta">${dates.length ? `${esc(dates[0])} 至 ${esc(dates[dates.length - 1])}　` : ''}當地幣別 ${esc(g.tripCur)}　結算幣別 ${esc(g.base)}　製表日 ${ymd()}</p>
+    <p class="meta">成員：${ms.map(m => esc(m.name)).join('、')}</p>
+    <div class="kpi"><div><span>總支出</span><b>${fmt(c.total, g.base)}</b></div><div><span>每人平均</span><b>${fmt(c.total / n, g.base)}</b></div><div><span>平均每天</span><b>${fmt(c.total / Math.max(1, days.length), g.base)}</b></div><div><span>筆數</span><b>${c.count}</b></div></div>
+    <h2>結算：誰該付給誰</h2>
+    ${pays.length ? `<table><thead><tr><th>付款人</th><th>收款人</th><th class="r">金額</th></tr></thead><tbody>${pays.map(p => `<tr><td>${esc(mName(p.from))}</td><td>${esc(mName(p.to))}</td><td class="r">${fmt(p.amount, g.base)}</td></tr>`).join('')}</tbody></table>` : '<p>所有人都已結清。</p>'}
+    <h2>每個人的收支</h2>
+    <table><thead><tr><th>成員</th><th class="r">先墊</th><th class="r">應分攤</th><th class="r">淨額</th><th>狀態</th></tr></thead><tbody>${ms.map(m => { const v = c.net[m.id] || 0; return `<tr><td>${esc(m.name)}</td><td class="r">${fmt(c.paid[m.id] || 0, g.base)}</td><td class="r">${fmt(c.owed[m.id] || 0, g.base)}</td><td class="r">${Math.abs(v) < eps ? fmt(0, g.base) : (v > 0 ? '+' : '−') + fmt(Math.abs(v), g.base)}</td><td>${Math.abs(v) < eps ? '已結清' : v > 0 ? '應收' : '應付'}</td></tr>`; }).join('')}</tbody></table>
+    ${trs.length ? '<p class="meta" style="margin-top:4pt">淨額已扣除下方的還款紀錄。</p>' : ''}
+    <h2>分類統計</h2>
+    <table><thead><tr><th>分類</th><th></th><th class="r">金額</th><th class="r">占比</th></tr></thead><tbody>${cats.map(([k, v]) => `<tr><td>${CATS[k] ? CATS[k][1] : '其他'}</td><td>${bar(v)}</td><td class="r">${fmt(v, g.base)}</td><td class="r">${c.total ? (v / c.total * 100).toFixed(1) : '0.0'}%</td></tr>`).join('')}</tbody></table>
+    <h2>每日支出</h2>
+    <table><thead><tr><th>日期</th><th class="r">金額</th></tr></thead><tbody>${days.map(([k, v]) => `<tr><td>${esc(dayLabel(k))}</td><td class="r">${fmt(v, g.base)}</td></tr>`).join('')}</tbody></table>
+    <h2>逐筆明細</h2>
+    <table><thead><tr><th>日期</th><th>分類</th><th>名稱與品項</th><th style="white-space:nowrap">付款人</th><th class="r">原幣金額</th><th class="r">匯率</th><th class="r">${esc(g.base)}</th><th>分攤</th></tr></thead>
+      <tbody>${exps.map(e => `<tr><td style="white-space:nowrap">${esc((e.date || '').slice(5).replace('-', '/'))}</td><td style="white-space:nowrap">${CATS[e.category] ? CATS[e.category][1] : '其他'}</td>
+        <td>${esc(e.title)}${e.note ? `<div class="its">備註：${esc(e.note)}</div>` : ''}${e.items?.length ? `<div class="its">${esc(itemsText(e))}</div>` : ''}</td>
+        <td style="white-space:nowrap">${esc(mName(e.payer))}</td><td class="r">${fmt(e.amount, e.currency)}</td><td class="r">${e.currency === g.base ? '' : fmtRate(e.rate || 1)}</td><td class="r">${fmt(e.baseAmount, g.base)}</td><td>${esc(splitText(e))}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="6">合計</td><td class="r">${fmt(c.total, g.base)}</td><td></td></tr></tfoot></table>
+    ${trs.length ? `<h2>還款紀錄</h2><table><thead><tr><th>日期</th><th>付款人</th><th>收款人</th><th class="r">金額</th></tr></thead><tbody>${trs.map(e => `<tr><td>${esc(e.date || '')}</td><td>${esc(mName(e.from))}</td><td>${esc(mName(e.to))}</td><td class="r">${fmt(e.baseAmount, g.base)}</td></tr>`).join('')}</tbody></table>` : ''}
+    <p class="meta" style="margin-top:12pt">每筆帳以記帳當下的匯率換算成 ${esc(g.base)}；匯率欄是 1 單位原幣可換得的 ${esc(g.base)}。</p>`;
+}
+function exportPdf() {
+  if (!S.group) return;
+  $('#print').innerHTML = reportHtml();
+  const old = document.title; document.title = `${safeName(S.group.name)}_分帳報表_${ymd()}`;
+  const back = () => { document.title = old; window.removeEventListener('afterprint', back); };
+  window.addEventListener('afterprint', back); setTimeout(back, 60000);
+  try { window.print(); } catch { toast('這個瀏覽器不能列印，請改用 Chrome 或 Safari 開啟'); }
+}
+function exportCsv() {
+  if (!S.group) return;
+  const g = S.group, c = compute(), ms = memberList();
+  const cell = v => { let t = v == null ? '' : String(v); if (typeof v === 'string' && /^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const rows = [['日期', '類型', '分類', '名稱', '付款人', '原幣金額', '幣別', '匯率', `結算金額(${g.base})`, '分攤方式', ...ms.map(m => `${m.name} 應分攤(${g.base})`), '備註', '品項明細']];
+  for (const e of [...S.expenses].sort((a, b) => (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : (a.createdAt || 0) - (b.createdAt || 0))) {
+    if (e.kind === 'transfer') { rows.push([e.date, '還款', '', `${mName(e.from)} 付給 ${mName(e.to)}`, mName(e.from), e.baseAmount, g.base, 1, e.baseAmount, '', ...ms.map(() => ''), '', '']); continue; }
+    const sh = sharesOf(e);
+    rows.push([e.date, '支出', CATS[e.category] ? CATS[e.category][1] : '其他', e.title, mName(e.payer), e.amount, e.currency, e.rate, e.baseAmount, splitText(e), ...ms.map(m => sh[m.id] ? roundTo(sh[m.id], 2) : ''), e.note || '', itemsText(e)]);
+  }
+  rows.push([], ['成員', `先墊(${g.base})`, `應分攤(${g.base})`, `淨額(${g.base}，正數為應收)`]);
+  for (const m of ms) rows.push([m.name, roundTo(c.paid[m.id] || 0, 2), roundTo(c.owed[m.id] || 0, 2), roundTo(c.net[m.id] || 0, 2)]);
+  const blob = new Blob(['\uFEFF' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${safeName(g.name)}_分帳明細_${ymd()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已下載 Excel 明細');
 }
 
 /* =====================================================================
@@ -812,7 +929,7 @@ async function tryJoin() {
 }
 function openGroup(gid) {
   leaveGroupView(); S.gid = gid; S.tab = 'list'; S.group = null; S.expenses = []; render();
-  unsubGroup = store.watchGroup(gid, g => { if (S.gid !== gid) return; if (!g || (store.mode === 'cloud' && !(g.memberUids || []).includes(S.user.uid))) { toast('這個行程已經不存在，或你已退出'); goHome(); return; } S.group = g; render(); });
+  unsubGroup = store.watchGroup(gid, (g, err) => { if (S.gid !== gid) return; if (!g || (store.mode === 'cloud' && !(g.memberUids || []).includes(S.user.uid))) { if (!err) toast('這個行程已經不存在，或你已退出'); goHome(); return; } S.group = g; render(); });
   unsubExp = store.watchExpenses(gid, list => { if (S.gid !== gid) return; S.expenses = list; render(); });
   window.scrollTo(0, 0);
 }
@@ -835,6 +952,7 @@ function saveExpense() {
   const now = Date.now();
   const hasReceipt = F.receiptChanged ? !!F.receipt : F.hasReceipt;
   const data = { kind: 'expense', title: F.title.trim() || CATS[F.category][1], amount: a, currency: F.currency, rate: r, baseAmount: roundTo(a * r, 2), payer: F.payer, split, date: F.date || ymd(), category: F.category, note: F.note.trim(), hasReceipt, ai: F.ai.size > 0,
+    items: F.items.map(it => { const o = { name: it.name.trim().slice(0, 60) }, a = num(it.amount); if (Number.isFinite(a)) o.amount = a; if (it.orig) o.orig = it.orig; if (it.qty > 0) o.qty = it.qty; return o; }).filter(o => o.name || o.amount != null).slice(0, 40),
     createdBy: F.createdBy || S.user.uid, createdAt: F.createdAt || now, updatedAt: now };
   store.saveExpense(S.gid, F.id, data, F.receiptChanged ? (F.receipt || null) : undefined);
   toast(F.id ? '已儲存修改' : '已記下這筆'); closeSheet();
@@ -866,9 +984,16 @@ document.addEventListener('click', async ev => {
       const name = $('#n-name').value.trim(), me = $('#n-me').value.trim() || S.user.name;
       Object.assign(sheet, { name, me, tripCur: $('#n-trip').value, base: $('#n-base').value });
       if (!name) { sheet.err = '請幫行程取個名字。'; renderSheet(); break; }
-      const gid = store.createGroup({ name, base: sheet.base, tripCur: sheet.tripCur, ownerUid: S.user.uid, memberUids: [S.user.uid], inviteCode: rid(20), createdAt: Date.now(),
-        members: { [S.user.uid]: { name: me, photo: S.user.photo || '', email: S.user.email || '', joinedAt: Date.now() } } });
-      closeSheet(); openGroup(gid); break;
+      el.disabled = true; el.textContent = '建立中…';
+      try {
+        const gid = await store.createGroup({ name, base: sheet.base, tripCur: sheet.tripCur, ownerUid: S.user.uid, memberUids: [S.user.uid], inviteCode: rid(20), createdAt: Date.now(),
+          members: { [S.user.uid]: { name: me, photo: S.user.photo || '', email: S.user.email || '', joinedAt: Date.now() } } });
+        closeSheet(); openGroup(gid);
+      } catch (e) {
+        console.error(e);
+        if (sheet?.type === 'group') { sheet.err = e?.code === 'permission-denied' ? '建立行程被拒絕（沒有權限）。請確認 Firestore 安全規則已經發布。' : `建立行程沒有成功（${e?.code || '連線問題'}）。`; renderSheet(); }
+      }
+      break;
     }
     case 'add-cam': $('#cam').click(); break;
     case 'add-pick': $('#pick').click(); break;
@@ -881,6 +1006,10 @@ document.addEventListener('click', async ev => {
     case 'f-view': { const v = document.createElement('div'); v.className = 'viewer'; v.innerHTML = `<img src="${esc(F.receipt)}" alt="收據照片">`; v.onclick = () => v.remove(); document.body.appendChild(v); break; }
     case 'f-rescan': runOcr(); break;
     case 'f-remove-receipt': F.receipt = null; F.receiptChanged = true; F.ocrSrc = null; F.ocr = 'idle'; renderSheet(); break;
+    case 'f-item-add': F.items.push({ name: '', orig: '', qty: 0, amount: '' }); F.touched.add('items'); renderSheet(); $(`#f-it-n-${F.items.length - 1}`)?.focus(); break;
+    case 'f-item-del': F.items.splice(+el.dataset.i, 1); F.touched.add('items'); if (!F.items.length) F.ai.delete('items'); renderSheet(); break;
+    case 'export-pdf': exportPdf(); break;
+    case 'export-csv': exportCsv(); break;
     case 'f-save': saveExpense(); break;
     case 'f-delete': if (confirm('確定刪除這筆帳目？')) { store.deleteExpense(S.gid, F.id); closeSheet(); toast('已刪除'); } break;
     case 'pay': openSheet({ type: 'transfer', id: null, from: el.dataset.from, to: el.dataset.to, amount: el.dataset.amt, date: ymd() }); break;
@@ -911,6 +1040,7 @@ document.addEventListener('click', async ev => {
 sheetEl.addEventListener('input', ev => {
   const t = ev.target; if (!F || sheet?.type !== 'expense') return;
   const unmark = k => { F.touched.add(k); if (F.ai.delete(k)) t.closest('.field')?.classList.remove('ai'); };
+  if (t.dataset.item != null) { const it = F.items[+t.dataset.item]; if (!it) return; it[t.dataset.k] = t.value; F.touched.add('items'); if (F.ai.delete('items')) t.closest('.field')?.classList.remove('ai'); const el = $('#f-items-sum'); if (el) el.textContent = itemsSumText(); return; }
   if (t.dataset.share) { F.shares[t.dataset.share] = t.value; const r = $('#f-remain'); if (r) { const x = remainText(); r.textContent = x.text; r.classList.toggle('bad', !x.ok); } return; }
   switch (t.id) {
     case 'f-amount': F.amount = t.value; unmark('amount'); break;
@@ -922,6 +1052,7 @@ sheetEl.addEventListener('input', ev => {
   const g = S.group, a = num(F.amount), r = num(F.rate), ap = $('#f-approx'), ea = $('#f-each'), re = $('#f-remain');
   if (ap) ap.innerHTML = a > 0 && r > 0 ? `　≈ <b class="num">${fmt(a * r, g.base)}</b>` : '';
   if (ea) ea.textContent = eachText();
+  const isum = $('#f-items-sum'); if (isum && F.items.length) isum.textContent = itemsSumText();
   if (re) { const x = remainText(); re.textContent = x.text; re.classList.toggle('bad', !x.ok); }
 });
 sheetEl.addEventListener('change', ev => {
